@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Калькулятор отпускных на 2026–2027 годы по производственному календарю РФ. Праздничные дни в периоде отпуска оплачиваются.">
+    <title>Калькулятор отпускных 2026-2027</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        html { -webkit-text-size-adjust: 100%; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+            overflow-x: hidden;
+        }
+        .hidden-element { display: none !important; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .money-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.75rem;
+        }
+        .money-row > :first-child { min-width: 0; }
+        .money-row > :last-child {
+            flex: none;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+        input, button, select { font-size: 16px; }
+        input[type="date"], input[type="number"] {
+            display: block;
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+        }
+        @media (max-width: 380px) {
+            .money-row { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body class="min-h-screen py-4 sm:py-8 lg:py-10 px-3 sm:px-6 lg:px-8">
+
+    <div class="max-w-4xl w-full mx-auto bg-white rounded-2xl shadow-xl overflow-hidden">
+
+        <div class="bg-blue-600 px-4 py-5 sm:px-8 sm:py-6 text-white text-center">
+            <h1 class="text-2xl sm:text-3xl font-bold leading-tight">Калькулятор отпускных 2026–2027</h1>
+            <p class="mt-2 text-sm sm:text-base text-blue-100">Узнайте, выгодно ли брать отпуск в выбранные даты</p>
+        </div>
+
+        <div class="p-4 sm:p-6 lg:p-8">
+            <form id="calculatorForm" class="space-y-5 sm:space-y-6">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+
+                    <div class="sm:col-span-2 lg:col-span-1 min-w-0">
+                        <label for="salary" class="block text-sm font-medium text-gray-700 mb-2">Ежемесячный оклад (₽)</label>
+                        <input type="number" id="salary" inputmode="numeric" value="100000" min="1" step="1" required
+                            class="w-full min-h-[44px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+                    </div>
+
+                    <div class="min-w-0">
+                        <label for="startDate" class="block text-sm font-medium text-gray-700 mb-2">Начало отпуска</label>
+                        <input type="date" id="startDate" required min="2026-01-01" max="2027-12-31"
+                            class="w-full min-h-[44px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+                    </div>
+
+                    <div class="min-w-0">
+                        <label for="endDate" class="block text-sm font-medium text-gray-700 mb-2">Конец отпуска</label>
+                        <input type="date" id="endDate" required min="2026-01-01" max="2027-12-31"
+                            class="w-full min-h-[44px] px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition outline-none">
+                    </div>
+                </div>
+
+                <div class="flex justify-center pt-2 sm:pt-4">
+                    <button type="submit"
+                        class="w-full sm:w-auto min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                        Рассчитать выгоду
+                    </button>
+                </div>
+            </form>
+
+            <div id="errorBox" class="hidden-element mt-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 text-center text-sm sm:text-base">
+                Дата окончания отпуска не может быть раньше даты начала. Нужны даты 2026 или 2027 года.
+            </div>
+
+            <div id="resultsArea" class="hidden-element mt-8 sm:mt-10 space-y-6 fade-in border-t pt-6 sm:pt-8 border-gray-200">
+                <h2 class="text-xl sm:text-2xl font-semibold text-gray-800 text-center">Результаты расчета</h2>
+                <p class="text-center text-xs sm:text-sm text-gray-500">Суммы округлены до рубля. Праздничные дни в отпуске оплачиваются.</p>
+
+                <div id="monthsBreakdown" class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6"></div>
+
+                <div class="bg-gray-50 p-4 sm:p-6 rounded-xl border border-gray-200">
+                    <h3 class="text-base sm:text-lg font-bold text-gray-800 mb-4 border-b pb-2">Общая сводка за выбранный период</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-sm">
+                        <div class="money-row">
+                            <span class="text-gray-600">Календарных дней:</span>
+                            <span id="totalVacationDays" class="font-semibold text-gray-900">0</span>
+                        </div>
+                        <div class="money-row">
+                            <span class="text-gray-600">Из них праздники:</span>
+                            <span id="totalHolidayDays" class="font-semibold text-gray-900">0</span>
+                        </div>
+                        <div class="money-row">
+                            <span class="text-gray-600">СДЗ:</span>
+                            <span id="sdzValue" class="font-semibold text-gray-900">0 ₽</span>
+                        </div>
+                        <div class="money-row">
+                            <span class="text-gray-600">Сумма отпускных:</span>
+                            <span id="totalVacationPay" class="font-semibold text-blue-600">0 ₽</span>
+                        </div>
+                        <div class="money-row font-bold text-base pt-2 border-t sm:col-span-2">
+                            <span>Финансовая разница:</span>
+                            <span id="totalDifference">0 ₽</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="suggestionsArea" class="hidden-element p-4 sm:p-6 rounded-xl border-2 border-green-400 bg-green-50">
+                    <h3 class="text-base sm:text-lg font-bold text-green-800 mb-2 flex items-center">
+                        <svg class="w-5 h-5 mr-2 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Умный подбор дат
+                    </h3>
+                    <p class="text-sm text-green-900 mb-4">Выбранные даты дают меньший доход, чем оклад. Ниже варианты, которые считаются по тому же правилу и выходят выгоднее.</p>
+                    <div id="suggestionsCards" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </div>
+
+            <div class="mt-8 sm:mt-12 bg-blue-50 rounded-xl p-4 sm:p-6 border border-blue-100">
+                <h3 class="text-base sm:text-lg font-bold text-blue-800 mb-3 flex items-start sm:items-center">
+                    <svg class="w-5 h-5 mr-2 mt-0.5 sm:mt-0 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Когда выгоднее брать отпуск?
+                </h3>
+                <p class="text-sm text-blue-900 mb-4">
+                    Чем больше рабочих дней в месяце, тем дешевле один пропущенный день. Выходные и праздники в сроке отпуска оплачиваются, а оклад за них не теряется: это не рабочие дни.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                    <div>
+                        <h4 class="font-bold text-gray-800 mb-2 border-b pb-1">Рейтинг месяцев 2026</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="bg-white p-3 rounded-lg border border-green-200 shadow-sm">
+                                <span class="font-bold text-green-600">Лучшие:</span> июль (23 дн.), апрель, сентябрь, октябрь и декабрь (22 дн.).
+                            </div>
+                            <div class="bg-white p-3 rounded-lg border border-red-200 shadow-sm">
+                                <span class="font-bold text-red-600">Худшие:</span> январь (15 дн.), февраль и май (19 дн.), ноябрь (20 дн.).
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-800 mb-2 border-b pb-1">Рейтинг месяцев 2027</h4>
+                        <div class="space-y-2 text-sm">
+                            <div class="bg-white p-3 rounded-lg border border-green-200 shadow-sm">
+                                <span class="font-bold text-green-600">Лучшие:</span> март, апрель, июль, август, сентябрь и декабрь (22 дн.).
+                            </div>
+                            <div class="bg-white p-3 rounded-lg border border-red-200 shadow-sm">
+                                <span class="font-bold text-red-600">Худшие:</span> январь (15 дн.), февраль и май (19 дн.), ноябрь (20 дн.).
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+        const MIN_DATE = '2026-01-01';
+        const MAX_DATE = '2027-12-31';
+
+        // Рабочие дни — производственный календарь при пятидневке.
+        // 2026: постановление Правительства РФ от 24.09.2025 № 1466
+        // (3 января → 9 января, 4 января → 31 декабря) и переносы по ст. 112 ТК РФ
+        // (8 марта → 9 марта, 9 мая → 11 мая).
+        // 2027: постановление Правительства РФ от 17.09.2026 № 1187
+        // (2 января → 5 ноября, 3 января → 31 декабря, 20 февраля → 22 февраля)
+        // и переносы 1 мая → 3 мая, 9 мая → 10 мая, 12 июня → 14 июня.
+        const calendarData = {
+            2026: {
+                workDays: [15, 19, 21, 22, 19, 21, 23, 21, 22, 22, 20, 22],
+                holidays: [
+                    '2026-01-01', '2026-01-02', '2026-01-03', '2026-01-04', '2026-01-05', '2026-01-06', '2026-01-07', '2026-01-08',
+                    '2026-02-23', '2026-03-08', '2026-05-01', '2026-05-09', '2026-06-12', '2026-11-04'
+                ],
+                extraDaysOff: ['2026-01-09', '2026-03-09', '2026-05-11', '2026-12-31'],
+                workingWeekends: []
+            },
+            2027: {
+                workDays: [15, 19, 22, 22, 19, 21, 22, 22, 22, 21, 20, 22],
+                holidays: [
+                    '2027-01-01', '2027-01-02', '2027-01-03', '2027-01-04', '2027-01-05', '2027-01-06', '2027-01-07', '2027-01-08',
+                    '2027-02-23', '2027-03-08', '2027-05-01', '2027-05-09', '2027-06-12', '2027-11-04'
+                ],
+                extraDaysOff: ['2027-02-22', '2027-05-03', '2027-05-10', '2027-06-14', '2027-11-05', '2027-12-31'],
+                workingWeekends: ['2027-02-20']
+            }
+        };
+
+        const formatMoney = (amount) => {
+            return new Intl.NumberFormat('ru-RU', {
+                style: 'currency',
+                currency: 'RUB',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            }).format(Math.round(amount));
+        };
+
+        const formatDate = (date) => {
+            return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short', year: 'numeric' });
+        };
+
+        const formatISO = (date) => {
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return date.getFullYear() + '-' + month + '-' + day;
+        };
+
+        const parseISODate = (value) => {
+            const parts = value.split('-').map(Number);
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        };
+
+        const addDays = (date, days) => {
+            const next = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+            next.setDate(next.getDate() + days);
+            return next;
+        };
+
+        const sameRange = (startA, endA, startB, endB) => {
+            return startA.getTime() === startB.getTime() && endA.getTime() === endB.getTime();
+        };
+
+        const roundRub = (value) => Math.round(value);
+
+        const isHoliday = (date) => {
+            const data = calendarData[date.getFullYear()];
+            return Boolean(data && data.holidays.includes(formatISO(date)));
+        };
+
+        const isWorkingDay = (date) => {
+            const data = calendarData[date.getFullYear()];
+            if (!data) return false;
+
+            const key = formatISO(date);
+            if (data.workingWeekends.includes(key)) return true;
+
+            const dayOfWeek = date.getDay();
+            if (dayOfWeek === 0 || dayOfWeek === 6) return false;
+            if (data.holidays.includes(key) || data.extraDaysOff.includes(key)) return false;
+            return true;
+        };
+
+        const salaryForWorkedDays = (salary, worked, workDays) => {
+            if (worked <= 0) return 0;
+            if (worked >= workDays) return salary;
+            return roundRub(salary * worked / workDays);
+        };
+
+        const calculateVacation = (startDate, endDate, salary) => {
+            const salaryRub = roundRub(salary);
+            const sdz = roundRub(salaryRub / 29.3);
+            const monthStats = {};
+            let calendarDays = 0;
+            let holidayDays = 0;
+
+            for (let cursor = addDays(startDate, 0); cursor <= endDate; cursor = addDays(cursor, 1)) {
+                const year = cursor.getFullYear();
+                const monthIndex = cursor.getMonth();
+                const key = year + '-' + monthIndex;
+
+                if (!monthStats[key]) {
+                    monthStats[key] = {
+                        year: year,
+                        monthName: monthNames[monthIndex],
+                        monthIndex: monthIndex,
+                        calDays: 0,
+                        holidayDays: 0,
+                        missedWorkDays: 0
+                    };
+                }
+
+                monthStats[key].calDays += 1;
+                calendarDays += 1;
+                if (isHoliday(cursor)) {
+                    monthStats[key].holidayDays += 1;
+                    holidayDays += 1;
+                }
+                if (isWorkingDay(cursor)) {
+                    monthStats[key].missedWorkDays += 1;
+                }
+            }
+
+            let totalIncome = 0;
+            let totalExpectedSalary = 0;
+            let totalVacationPay = 0;
+
+            Object.keys(monthStats).forEach((key) => {
+                const stats = monthStats[key];
+                const workDays = calendarData[stats.year].workDays[stats.monthIndex];
+                const worked = Math.max(0, workDays - stats.missedWorkDays);
+                const salaryPart = salaryForWorkedDays(salaryRub, worked, workDays);
+                const vacationPay = sdz * stats.calDays;
+                const income = salaryPart + vacationPay;
+
+                stats.workDays = workDays;
+                stats.worked = worked;
+                stats.dayCost = roundRub(salaryRub / workDays);
+                stats.salaryPart = salaryPart;
+                stats.vacationPay = vacationPay;
+                stats.income = income;
+                stats.difference = income - salaryRub;
+
+                totalIncome += income;
+                totalExpectedSalary += salaryRub;
+                totalVacationPay += vacationPay;
+            });
+
+            return {
+                totalDifference: totalIncome - totalExpectedSalary,
+                totalVacationPay: totalVacationPay,
+                calendarDays: calendarDays,
+                holidayDays: holidayDays,
+                stats: monthStats,
+                sdz: sdz,
+                salary: salaryRub
+            };
+        };
+
+        const extendWithDaysOff = (start, end) => {
+            const minDate = parseISODate(MIN_DATE);
+            const maxDate = parseISODate(MAX_DATE);
+            let nextStart = addDays(start, 0);
+            let nextEnd = addDays(end, 0);
+
+            while (true) {
+                const prev = addDays(nextStart, -1);
+                if (prev < minDate || isWorkingDay(prev)) break;
+                nextStart = prev;
+            }
+            while (true) {
+                const next = addDays(nextEnd, 1);
+                if (next > maxDate || isWorkingDay(next)) break;
+                nextEnd = next;
+            }
+
+            if (sameRange(nextStart, nextEnd, start, end)) return null;
+            return { start: nextStart, end: nextEnd };
+        };
+
+        const findAlternatives = (originalStart, originalEnd, salary, current) => {
+            const minDate = parseISODate(MIN_DATE);
+            const maxDate = parseISODate(MAX_DATE);
+            const duration = current.calendarDays;
+            let best = null;
+
+            for (let cursor = minDate; cursor <= maxDate; cursor = addDays(cursor, 1)) {
+                const testEnd = addDays(cursor, duration - 1);
+                if (testEnd > maxDate) break;
+
+                const result = calculateVacation(cursor, testEnd, salary);
+                const closer = best && result.totalDifference === best.diff
+                    && Math.abs(cursor - originalStart) < Math.abs(best.start - originalStart);
+                if (!best || result.totalDifference > best.diff || closer) {
+                    best = {
+                        start: addDays(cursor, 0),
+                        end: testEnd,
+                        diff: result.totalDifference,
+                        calendarDays: result.calendarDays,
+                        holidayDays: result.holidayDays
+                    };
+                }
+            }
+
+            let bestShift = null;
+            if (best && best.diff > current.totalDifference && !sameRange(best.start, best.end, originalStart, originalEnd)) {
+                bestShift = best;
+            }
+
+            let padded = null;
+            const extended = extendWithDaysOff(originalStart, originalEnd);
+            if (extended) {
+                const result = calculateVacation(extended.start, extended.end, salary);
+                if (result.totalDifference > current.totalDifference) {
+                    padded = {
+                        start: extended.start,
+                        end: extended.end,
+                        diff: result.totalDifference,
+                        calendarDays: result.calendarDays,
+                        holidayDays: result.holidayDays,
+                        addedDays: result.calendarDays - current.calendarDays
+                    };
+                }
+            }
+
+            if (padded && bestShift && sameRange(padded.start, padded.end, bestShift.start, bestShift.end)) {
+                bestShift = null;
+            }
+
+            return { bestShift: bestShift, padded: padded };
+        };
+
+        const startDateEl = document.getElementById('startDate');
+        const endDateEl = document.getElementById('endDate');
+
+        startDateEl.addEventListener('change', function() {
+            if (this.value) {
+                endDateEl.min = this.value;
+                if (endDateEl.value && endDateEl.value < this.value) {
+                    endDateEl.value = this.value;
+                }
+            } else {
+                endDateEl.min = MIN_DATE;
+            }
+        });
+
+        const diffClass = (value) => {
+            if (value > 0) return 'text-lg font-bold text-green-600';
+            if (value < 0) return 'text-lg font-bold text-red-600';
+            return 'text-lg font-bold text-gray-600';
+        };
+
+        const signedMoney = (value) => (value > 0 ? '+' : '') + formatMoney(value);
+
+        document.getElementById('calculatorForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const salary = parseFloat(document.getElementById('salary').value);
+            const startDateInput = document.getElementById('startDate').value;
+            const endDateInput = document.getElementById('endDate').value;
+            const errorBox = document.getElementById('errorBox');
+            const resultsArea = document.getElementById('resultsArea');
+            const suggestionsArea = document.getElementById('suggestionsArea');
+            const monthsBreakdown = document.getElementById('monthsBreakdown');
+
+            errorBox.classList.add('hidden-element');
+            suggestionsArea.classList.add('hidden-element');
+            document.getElementById('suggestionsCards').innerHTML = '';
+            resultsArea.classList.remove('fade-in');
+
+            const startDate = parseISODate(startDateInput);
+            const endDate = parseISODate(endDateInput);
+            const isValidYear = (year) => year === 2026 || year === 2027;
+            const datesReady = startDateInput && endDateInput
+                && !Number.isNaN(startDate.getTime())
+                && !Number.isNaN(endDate.getTime());
+
+            if (!datesReady || endDate < startDate || !isValidYear(startDate.getFullYear()) || !isValidYear(endDate.getFullYear())) {
+                errorBox.classList.remove('hidden-element');
+                resultsArea.classList.add('hidden-element');
+                return;
+            }
+
+            const calcData = calculateVacation(startDate, endDate, salary);
+            document.getElementById('sdzValue').innerText = formatMoney(calcData.sdz);
+            monthsBreakdown.innerHTML = '';
+
+            Object.keys(calcData.stats).forEach((key) => {
+                const stats = calcData.stats[key];
+                const profitable = stats.difference > 0;
+                const neutral = stats.difference === 0;
+                const border = profitable ? 'border-green-200' : (neutral ? 'border-gray-200' : 'border-red-200');
+                const accent = profitable ? 'bg-green-500' : (neutral ? 'bg-gray-400' : 'bg-red-500');
+                const diffColor = profitable ? 'text-green-600' : (neutral ? 'text-gray-600' : 'text-red-600');
+                const holidayRow = stats.holidayDays > 0
+                    ? '<div class="money-row"><span>Праздники, они оплачиваются:</span><strong>' + stats.holidayDays + '</strong></div>'
+                    : '';
+
+                monthsBreakdown.insertAdjacentHTML('beforeend',
+                    '<div class="bg-white rounded-xl shadow-sm border ' + border + ' p-4 sm:p-5 relative overflow-hidden min-w-0">' +
+                        '<div class="absolute left-0 top-0 bottom-0 w-1 ' + accent + '"></div>' +
+                        '<h4 class="text-lg sm:text-xl font-bold text-gray-800 mb-4 ml-2">' + stats.monthName + ' ' + stats.year + '</h4>' +
+                        '<div class="space-y-2 text-sm text-gray-600 ml-2">' +
+                            '<div class="money-row"><span>Рабочих дней в месяце:</span><strong>' + stats.workDays + '</strong></div>' +
+                            '<div class="money-row"><span>Стоимость 1 раб. дня:</span><strong>' + formatMoney(stats.dayCost) + '</strong></div>' +
+                            '<div class="money-row"><span>Пропущено из-за отпуска:</span><strong>' + stats.missedWorkDays + ' раб. дн.</strong></div>' +
+                            holidayRow +
+                            '<hr class="my-2 border-gray-100">' +
+                            '<div class="money-row"><span>Отпускные (' + stats.calDays + ' к.д.):</span><strong>' + formatMoney(stats.vacationPay) + '</strong></div>' +
+                            '<div class="money-row"><span>Зарплата за остаток:</span><strong>' + formatMoney(stats.salaryPart) + '</strong></div>' +
+                            '<div class="money-row font-bold text-base text-gray-800 mt-3 pt-2 border-t"><span>Итого доход:</span><span>' + formatMoney(stats.income) + '</span></div>' +
+                            '<div class="money-row font-bold text-base mt-1 ' + diffColor + '"><span>Разница с окладом:</span><span>' + signedMoney(stats.difference) + '</span></div>' +
+                        '</div>' +
+                    '</div>'
+                );
+            });
+
+            document.getElementById('totalVacationDays').innerText = String(calcData.calendarDays);
+            document.getElementById('totalHolidayDays').innerText = String(calcData.holidayDays);
+            document.getElementById('totalVacationPay').innerText = formatMoney(calcData.totalVacationPay);
+
+            const diffElement = document.getElementById('totalDifference');
+            diffElement.innerText = signedMoney(calcData.totalDifference);
+            diffElement.className = diffClass(calcData.totalDifference);
+
+            if (calcData.totalDifference < 0) {
+                const alternatives = findAlternatives(startDate, endDate, salary, calcData);
+                const suggestionCards = document.getElementById('suggestionsCards');
+                suggestionCards.innerHTML = '';
+                let hasSuggestions = false;
+
+                if (alternatives.padded) {
+                    hasSuggestions = true;
+                    const padded = alternatives.padded;
+                    suggestionCards.insertAdjacentHTML('beforeend',
+                        '<div class="bg-white p-4 rounded-lg shadow-sm border border-green-200 min-w-0">' +
+                            '<div class="font-bold text-green-700 mb-1 text-sm">Захватить выходные и праздники</div>' +
+                            '<p class="text-xs text-gray-600 mb-2">Соседние нерабочие дни оплачиваются и не забирают рабочие смены. Праздники тоже входят в отпускные.</p>' +
+                            '<div class="text-sm break-words">' +
+                                '<strong>Даты:</strong> ' + formatDate(padded.start) + ' — ' + formatDate(padded.end) + '<br>' +
+                                '<strong>Дней:</strong> ' + padded.calendarDays + ' (+' + padded.addedDays + ')<br>' +
+                                '<strong>Разница:</strong> <span class="' + (padded.diff >= 0 ? 'text-green-600' : 'text-red-600') + ' font-bold">' + signedMoney(padded.diff) + '</span>' +
+                            '</div>' +
+                        '</div>'
+                    );
+                }
+
+                if (alternatives.bestShift) {
+                    hasSuggestions = true;
+                    const shift = alternatives.bestShift;
+                    suggestionCards.insertAdjacentHTML('beforeend',
+                        '<div class="bg-white p-4 rounded-lg shadow-sm border border-green-200 min-w-0">' +
+                            '<div class="font-bold text-green-700 mb-1 text-sm">Перенос на лучшие даты</div>' +
+                            '<p class="text-xs text-gray-600 mb-2">Те же ' + calcData.calendarDays + ' календарных дней, но в другом месте календаря 2026–2027.</p>' +
+                            '<div class="text-sm break-words">' +
+                                '<strong>Даты:</strong> ' + formatDate(shift.start) + ' — ' + formatDate(shift.end) + '<br>' +
+                                '<strong>Праздников:</strong> ' + shift.holidayDays + '<br>' +
+                                '<strong>Разница:</strong> <span class="' + (shift.diff >= 0 ? 'text-green-600' : 'text-red-600') + ' font-bold">' + signedMoney(shift.diff) + '</span>' +
+                            '</div>' +
+                        '</div>'
+                    );
+                }
+
+                if (hasSuggestions) suggestionsArea.classList.remove('hidden-element');
+            }
+
+            resultsArea.classList.remove('hidden-element');
+            void resultsArea.offsetWidth;
+            resultsArea.classList.add('fade-in');
+        });
+    </script>
+</body>
+</html>
