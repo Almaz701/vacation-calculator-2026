@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Калькулятор отпускных на 2026–2027 годы по производственному календарю РФ. Праздничные дни в периоде отпуска оплачиваются.">
+    <meta name="description" content="Калькулятор отпускных на 2026–2027 годы: обычный и учебный отпуск по производственному календарю РФ.">
     <title>Калькулятор отпускных 2026-2027</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -43,6 +43,44 @@
         @media (max-width: 380px) {
             .money-row { flex-wrap: wrap; }
         }
+        fieldset.leave-type {
+            border: 0;
+            padding: 0;
+            margin: 0;
+            min-width: 0;
+        }
+        .leave-option {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 48px;
+            padding: 0.75rem 1rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.75rem;
+            background: #fff;
+            color: #1f2937;
+            font-weight: 600;
+            line-height: 1.3;
+            text-align: center;
+            cursor: pointer;
+        }
+        .leave-option input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: 0;
+            opacity: 0;
+        }
+        .leave-option:has(input:checked) {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
+        }
+        .leave-option:has(input:focus-visible) {
+            outline: 2px solid #2563eb;
+            outline-offset: 2px;
+        }
     </style>
 </head>
 <body class="min-h-screen py-4 sm:py-8 lg:py-10 px-3 sm:px-6 lg:px-8">
@@ -77,6 +115,21 @@
                     </div>
                 </div>
 
+                <fieldset class="leave-type min-w-0">
+                    <legend class="block text-sm font-medium text-gray-700 mb-2">Тип отпуска</legend>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3" role="radiogroup" aria-label="Тип отпуска">
+                        <label class="leave-option">
+                            <input type="radio" name="leaveType" value="annual" checked>
+                            <span>Обычный отпуск</span>
+                        </label>
+                        <label class="leave-option">
+                            <input type="radio" name="leaveType" value="study">
+                            <span>Учебный отпуск</span>
+                        </label>
+                    </div>
+                    <p id="leaveTypeHint" class="mt-2 text-sm text-gray-600"></p>
+                </fieldset>
+
                 <div class="flex justify-center pt-2 sm:pt-4">
                     <button type="submit"
                         class="w-full sm:w-auto min-h-[44px] bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
@@ -91,7 +144,7 @@
 
             <div id="resultsArea" class="hidden-element mt-8 sm:mt-10 space-y-6 fade-in border-t pt-6 sm:pt-8 border-gray-200">
                 <h2 class="text-xl sm:text-2xl font-semibold text-gray-800 text-center">Результаты расчета</h2>
-                <p class="text-center text-xs sm:text-sm text-gray-500">Суммы округлены до рубля. Праздничные дни в отпуске оплачиваются.</p>
+                <p id="resultsNote" class="text-center text-xs sm:text-sm text-gray-500 px-1"></p>
 
                 <div id="monthsBreakdown" class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6"></div>
 
@@ -105,6 +158,10 @@
                         <div class="money-row">
                             <span class="text-gray-600">Из них праздники:</span>
                             <span id="totalHolidayDays" class="font-semibold text-gray-900">0</span>
+                        </div>
+                        <div class="money-row">
+                            <span class="text-gray-600">Оплачиваемых дней:</span>
+                            <span id="totalPayableDays" class="font-semibold text-gray-900">0</span>
                         </div>
                         <div class="money-row">
                             <span class="text-gray-600">СДЗ:</span>
@@ -137,7 +194,7 @@
                     Когда выгоднее брать отпуск?
                 </h3>
                 <p class="text-sm text-blue-900 mb-4">
-                    Чем больше рабочих дней в месяце, тем дешевле один пропущенный день. Выходные и праздники в сроке отпуска оплачиваются, а оклад за них не теряется: это не рабочие дни.
+                    Чем больше рабочих дней в месяце, тем дешевле один пропущенный день. Выходные входят в оплату и в обычном, и в учебном отпуске. Праздник в обычном отпуске не оплачивается. В учебном отпуске оплачивается каждый календарный день, и срок из‑за праздника не сдвигается.
                 </p>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -262,12 +319,19 @@
             return roundRub(salary * worked / workDays);
         };
 
-        const calculateVacation = (startDate, endDate, salary) => {
+        const isPayableDay = (date, leaveType) => {
+            if (leaveType === 'study') return true;
+            return !isHoliday(date);
+        };
+
+        const calculateVacation = (startDate, endDate, salary, leaveType) => {
+            const type = leaveType === 'study' ? 'study' : 'annual';
             const salaryRub = roundRub(salary);
             const sdz = roundRub(salaryRub / 29.3);
             const monthStats = {};
             let calendarDays = 0;
             let holidayDays = 0;
+            let payableDays = 0;
 
             for (let cursor = addDays(startDate, 0); cursor <= endDate; cursor = addDays(cursor, 1)) {
                 const year = cursor.getFullYear();
@@ -281,6 +345,7 @@
                         monthIndex: monthIndex,
                         calDays: 0,
                         holidayDays: 0,
+                        payableDays: 0,
                         missedWorkDays: 0
                     };
                 }
@@ -290,6 +355,10 @@
                 if (isHoliday(cursor)) {
                     monthStats[key].holidayDays += 1;
                     holidayDays += 1;
+                }
+                if (isPayableDay(cursor, type)) {
+                    monthStats[key].payableDays += 1;
+                    payableDays += 1;
                 }
                 if (isWorkingDay(cursor)) {
                     monthStats[key].missedWorkDays += 1;
@@ -305,7 +374,7 @@
                 const workDays = calendarData[stats.year].workDays[stats.monthIndex];
                 const worked = Math.max(0, workDays - stats.missedWorkDays);
                 const salaryPart = salaryForWorkedDays(salaryRub, worked, workDays);
-                const vacationPay = sdz * stats.calDays;
+                const vacationPay = sdz * stats.payableDays;
                 const income = salaryPart + vacationPay;
 
                 stats.workDays = workDays;
@@ -326,6 +395,8 @@
                 totalVacationPay: totalVacationPay,
                 calendarDays: calendarDays,
                 holidayDays: holidayDays,
+                payableDays: payableDays,
+                leaveType: type,
                 stats: monthStats,
                 sdz: sdz,
                 salary: salaryRub
@@ -363,7 +434,7 @@
                 const testEnd = addDays(cursor, duration - 1);
                 if (testEnd > maxDate) break;
 
-                const result = calculateVacation(cursor, testEnd, salary);
+                const result = calculateVacation(cursor, testEnd, salary, 'annual');
                 const closer = best && result.totalDifference === best.diff
                     && Math.abs(cursor - originalStart) < Math.abs(best.start - originalStart);
                 if (!best || result.totalDifference > best.diff || closer) {
@@ -385,7 +456,7 @@
             let padded = null;
             const extended = extendWithDaysOff(originalStart, originalEnd);
             if (extended) {
-                const result = calculateVacation(extended.start, extended.end, salary);
+                const result = calculateVacation(extended.start, extended.end, salary, 'annual');
                 if (result.totalDifference > current.totalDifference) {
                     padded = {
                         start: extended.start,
@@ -427,6 +498,35 @@
 
         const signedMoney = (value) => (value > 0 ? '+' : '') + formatMoney(value);
 
+        const leaveNotes = {
+            annual: 'Суммы округлены до рубля. Обычный отпуск: выходные оплачиваются, праздники в оплату не входят.',
+            study: 'Суммы округлены до рубля. Учебный отпуск: оплачивается каждый календарный день, включая выходные и праздники.'
+        };
+
+        const leaveHints = {
+            annual: 'Считаются дни от начала до конца. Выходные входят в оплату, праздники — нет. Если даты невыгодны, калькулятор предложит другие.',
+            study: 'Срок как в справке-вызове, без переноса. Оплачивается каждый день периода: и выходные, и праздники.'
+        };
+
+        const selectedLeaveType = () => {
+            const selected = document.querySelector('input[name="leaveType"]:checked');
+            return selected && selected.value === 'study' ? 'study' : 'annual';
+        };
+
+        const updateLeaveHint = () => {
+            document.getElementById('leaveTypeHint').textContent = leaveHints[selectedLeaveType()];
+        };
+
+        updateLeaveHint();
+        document.querySelectorAll('input[name="leaveType"]').forEach((input) => {
+            input.addEventListener('change', () => {
+                updateLeaveHint();
+                if (startDateEl.value && endDateEl.value) {
+                    document.getElementById('calculatorForm').requestSubmit();
+                }
+            });
+        });
+
         document.getElementById('calculatorForm').addEventListener('submit', function(e) {
             e.preventDefault();
 
@@ -456,8 +556,9 @@
                 return;
             }
 
-            const calcData = calculateVacation(startDate, endDate, salary);
+            const calcData = calculateVacation(startDate, endDate, salary, selectedLeaveType());
             document.getElementById('sdzValue').innerText = formatMoney(calcData.sdz);
+            document.getElementById('resultsNote').textContent = leaveNotes[calcData.leaveType];
             monthsBreakdown.innerHTML = '';
 
             Object.keys(calcData.stats).forEach((key) => {
@@ -468,7 +569,9 @@
                 const accent = profitable ? 'bg-green-500' : (neutral ? 'bg-gray-400' : 'bg-red-500');
                 const diffColor = profitable ? 'text-green-600' : (neutral ? 'text-gray-600' : 'text-red-600');
                 const holidayRow = stats.holidayDays > 0
-                    ? '<div class="money-row"><span>Праздники, они оплачиваются:</span><strong>' + stats.holidayDays + '</strong></div>'
+                    ? (calcData.leaveType === 'study'
+                        ? '<div class="money-row"><span>Праздники, они оплачиваются:</span><strong>' + stats.holidayDays + '</strong></div>'
+                        : '<div class="money-row"><span>Праздники, в оплату не входят:</span><strong>' + stats.holidayDays + '</strong></div>')
                     : '';
 
                 monthsBreakdown.insertAdjacentHTML('beforeend',
@@ -481,7 +584,7 @@
                             '<div class="money-row"><span>Пропущено из-за отпуска:</span><strong>' + stats.missedWorkDays + ' раб. дн.</strong></div>' +
                             holidayRow +
                             '<hr class="my-2 border-gray-100">' +
-                            '<div class="money-row"><span>Отпускные (' + stats.calDays + ' к.д.):</span><strong>' + formatMoney(stats.vacationPay) + '</strong></div>' +
+                            '<div class="money-row"><span>Отпускные (' + stats.payableDays + ' к.д.):</span><strong>' + formatMoney(stats.vacationPay) + '</strong></div>' +
                             '<div class="money-row"><span>Зарплата за остаток:</span><strong>' + formatMoney(stats.salaryPart) + '</strong></div>' +
                             '<div class="money-row font-bold text-base text-gray-800 mt-3 pt-2 border-t"><span>Итого доход:</span><span>' + formatMoney(stats.income) + '</span></div>' +
                             '<div class="money-row font-bold text-base mt-1 ' + diffColor + '"><span>Разница с окладом:</span><span>' + signedMoney(stats.difference) + '</span></div>' +
@@ -492,13 +595,14 @@
 
             document.getElementById('totalVacationDays').innerText = String(calcData.calendarDays);
             document.getElementById('totalHolidayDays').innerText = String(calcData.holidayDays);
+            document.getElementById('totalPayableDays').innerText = String(calcData.payableDays);
             document.getElementById('totalVacationPay').innerText = formatMoney(calcData.totalVacationPay);
 
             const diffElement = document.getElementById('totalDifference');
             diffElement.innerText = signedMoney(calcData.totalDifference);
             diffElement.className = diffClass(calcData.totalDifference);
 
-            if (calcData.totalDifference < 0) {
+            if (calcData.leaveType === 'annual' && calcData.totalDifference < 0) {
                 const alternatives = findAlternatives(startDate, endDate, salary, calcData);
                 const suggestionCards = document.getElementById('suggestionsCards');
                 suggestionCards.innerHTML = '';
@@ -510,7 +614,7 @@
                     suggestionCards.insertAdjacentHTML('beforeend',
                         '<div class="bg-white p-4 rounded-lg shadow-sm border border-green-200 min-w-0">' +
                             '<div class="font-bold text-green-700 mb-1 text-sm">Захватить выходные и праздники</div>' +
-                            '<p class="text-xs text-gray-600 mb-2">Соседние нерабочие дни оплачиваются и не забирают рабочие смены. Праздники тоже входят в отпускные.</p>' +
+                            '<p class="text-xs text-gray-600 mb-2">Соседние выходные оплачиваются и не забирают рабочие смены. Праздники в оплату не входят.</p>' +
                             '<div class="text-sm break-words">' +
                                 '<strong>Даты:</strong> ' + formatDate(padded.start) + ' — ' + formatDate(padded.end) + '<br>' +
                                 '<strong>Дней:</strong> ' + padded.calendarDays + ' (+' + padded.addedDays + ')<br>' +
